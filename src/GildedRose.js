@@ -1,84 +1,90 @@
-/*
-    2006-30-84
-    Leeroy was here!!
-    
-    Leeroy <lerooy@example.com>
-*/
-var GildedRose = function () {
-  var items = [];
-  items.push(new Item("+5 Dexterity Vest", 10, 20));
-  items.push(new Item("Aged Brie", 2, 0));
-  items.push(new Item("Elixir of the Mongoose", 5, 7));
-  items.push(new Item("Sulfuras, Hand of Ragnaros", 0, 80));
-  items.push(new Item("Backstage passes to a TAFKAL80ETC concert", 15, 20));
-  items.push(new Item("Conjured Mana Cake", 3, 6));
-  GildedRose.updateQuality(items);
+class Decayer{
+  sellInSubtractor(item) {
+    item.sellIn --;
+  }
+  specialItemsDecay(item, min, max) {  //<======== special cases
+    switch(item.name) {
+      case 'Sulfuras, Hand of Ragnaros': 
+        item.sellIn = item.sellIn;
+        item.quality = 80;
+      break;
+      case 'Conjured Mana Cake':
+        this.oneDayQualityDecay(item, min, 2);
+      break;
+    }
+  }
+
+  oneDayQualityDecay(item, min, factor) {
+    this.sellInSubtractor(item)
+    if(item.quality <= min) {  //<======== quality can't be less than MIN_BOUNDERY
+      item.quality = min;
+    }
+    else if(item.sellIn <= 0) {  //<======== quality decreases twice as fast when we have passed the sellIn date
+      factor ? item.quality -= 2 * factor : item.quality -= 2;  //<======== ternary checks if is conjured
+    }
+    else {  //<======== regular decrease
+      factor ? item.quality -= 1 * factor : item.quality -= 1;  //<======== ternary checks if is conjured
+    };
+  };
+
+  oneDayQualityGrowth(item, max) {
+    this.sellInSubtractor(item)
+    if(item.sellIn <= 0) {  //<======== quality drops to 0 after the concert
+      item.quality = 0;
+    } 
+    else if(item.sellIn <= 5) { //<======== quality increases by 3 when there are 5 days or less
+      item.quality += 3;
+    } 
+    else if(item.sellIn <= 10) { //<======== quality increases by 2 when there are 5 days or less
+      item.quality += 2;
+    }
+    else {
+      item.quality ++; //<======== regular increase
+    };
+
+    if(item.quality >= max) { //<======== quality can't be more than MIN_BOUNDERY
+      item.quality = 50;
+    };
+  };
 };
 
-GildedRose.updateQuality = function (items) {
-  for (var i = 0; i < items.length; i++) {
-    if ("Aged Brie" != items[i].name && "Backstage passes to a TAFKAL80ETC concert" != items[i].name) {
-      //TODO: Improve this code.
-      if (items[i].quality > 0) {
-        if ("Sulfuras, Hand of Ragnaros" != items[i].name) {
-          items[i].quality = items[i].quality - 1
-        }
+class GildedRose extends Decayer {
+  constructor() {
+    super();
+    this.MAX_BOUND = 50;
+    this.MIN_BOUND = 0;
+  };
+  updateQuality(items) {
+    items.map((item) => {
+      if(item.name.includes('Sulfuras, Hand of Ragnaros') || item.name.includes('Conjured Mana Cake')) {
+        this.specialItemsDecay(item, this.MIN_BOUND, this.MAX_BOUND)
       }
-    } else {
-      if (items[i].quality < 50) {
-        items[i].quality = items[i].quality + 1
-        if ("Aged Brie" == items[i].name) {
-            if (items[i].sellIn < 6) {
-              items[i].quality = items[i].quality + 1
-            }
-        }
-        //Increases the Quality of the stinky cheese if its 11 days to due date.
-        if ("Aged Brie" == items[i].name) {
-            if (items[i].sellIn < 11) {
-              items[i].quality = items[i].quality + 1
-            }
-        }
-        if ("Backstage passes to a TAFKAL80ETC concert" == items[i].name) {
-          if (items[i].sellIn < 11) {
-            // See revision number 2394 on SVN.
-            if (items[i].quality < 50) {
-              items[i].quality = items[i].quality + 1
-            }
-          }
-          //Increases the Quality of Backstage Passes if the Quality is 6 or less.
-          if (items[i].sellIn < 6) {
-            if (items[i].quality < 50) {
-              items[i].quality = items[i].quality + 1
-            }
-          }
-        }
+      else if(item.name.includes('Aged Brie') || item.name.includes('Backstage passes to a TAFKAL80ETC concert' )) {
+        this.oneDayQualityGrowth(item, this.MAX_BOUND)
       }
-    }
-    if ("Sulfuras, Hand of Ragnaros" != items[i].name) {
-      items[i].sellIn = items[i].sellIn - 1;
-    }
-    if (items[i].sellIn < 0) {
-      if ("Aged Brie" != items[i].name) {
-        if ("Backstage passes to a TAFKAL80ETC concert" != items[i].name) {
-          if (items[i].quality > 0) {
-            if ("Sulfuras, Hand of Ragnaros" != items[i].name) {
-              items[i].quality = items[i].quality - 1
-            }
-          }
-        } else {
-          //TODO: Fix this.
-          items[i].quality = items[i].quality - items[i].quality
-        }
-      } else {
-        if (items[i].quality < 50) {
-          items[i].quality = items[i].quality + 1
-        }
-        if ("Aged Brie" == items[i].name && items[i].sellIn <= 0)
-            items[i].quality = 0;
-      } // of for.
-    }
-    if ("Sulfuras, Hand of Ragnaros" != items[i].name)
-      if (items[i].quality > 50) items[i].quality = 50;
-  }
-  return items;
+      else {
+        this.oneDayQualityDecay(item, this.MIN_BOUND)
+      };
+    });
+    return items;
+  };
+  timeStarter(items, days) {
+    for(let i = 0; i < days; i++){
+      this.updateQuality(items);
+    };
+    return items;
+  };
 };
+
+const Items = [
+  new Item("+5 Dexterity Vest", 10, 20),
+  new Item("Aged Brie", 2, 47),
+  new Item("Elixir of the Mongoose", 5, 7),
+  new Item("Sulfuras, Hand of Ragnaros", 0, 80),
+  new Item("Backstage passes to a TAFKAL80ETC concert", 15, 20),
+  new Item("Conjured Mana Cake", 3, 6)
+];
+
+const gildedRose = new GildedRose();
+
+// console.log(gildedRose.timeStarter(Items, 12));
